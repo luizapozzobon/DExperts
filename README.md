@@ -1,5 +1,12 @@
 # DExperts
-Hi! This repository contains code for the paper [DExperts: Decoding-Time Controlled Text Generation with Experts and Anti-Experts](https://arxiv.org/abs/2105.03023) to appear at ACL 2021. If you have any questions, please feel free to create a Github issue or reach out to the first author at alisaliu@cs.washington.edu. 
+Hi! This repository contains code for the paper [DExperts: Decoding-Time Controlled Text Generation with Experts and Anti-Experts](https://arxiv.org/abs/2105.03023) to appear at ACL 2021. If you have any questions, please feel free to create a Github issue or reach out to the first author at alisaliu@cs.washington.edu.
+
+Create the docker image and run container with
+```
+docker build -t dexperts .
+
+nvidia-docker run -ti --userns=host --shm-size 64G -v $pwd:/home/dexperts/ -p 6006:6006 --name dexperts dexperts /bin/bash
+```
 
 Create a conda environment called `dexperts` with
 ```
@@ -25,7 +32,7 @@ python -m scripts.run_toxicity_experiment \
     $OUTPUT_DIR
 ```
 
-In general, `model_type` is one of `gpt2` (the base model), `dexperts` (our method), and `pplm`. With an [OpenAI API](https://beta.openai.com/) key for GPT-3 access, you can also try `gpt3` and `dexperts-gpt3`. Different methods have different additional parameters to specify; to see the commands we used for each method in our paper, please look under `scripts/our_scripts/toxicity`. For experiments with GeDi, we directly used the original [authors' codebase](https://github.com/salesforce/GeDi). 
+In general, `model_type` is one of `gpt2` (the base model), `dexperts` (our method), and `pplm`. With an [OpenAI API](https://beta.openai.com/) key for GPT-3 access, you can also try `gpt3` and `dexperts-gpt3`. Different methods have different additional parameters to specify; to see the commands we used for each method in our paper, please look under `scripts/our_scripts/toxicity`. For experiments with GeDi, we directly used the original [authors' codebase](https://github.com/salesforce/GeDi).
 
 When `model_type` is `dexperts`, we can steer away from toxicity using only a toxic anti-expert. To do this, leave `--nontoxic-model` empty, and DExperts will re-use the base model as the expert. The hyperparameter `alpha` controls the strength of steering over the base model. We use `filter_p` to use the nucleus from the base model, as described in Section 2.2 of our paper.
 
@@ -64,7 +71,7 @@ python -m scripts.evaluation.evaluate_generations \
 ```
 
 ## Notebooks
-Our jupyter notebooks are in `notebooks/`. To obtain the same tables and plots that appear in the paper, look in `sentiment_results.ipynb`, `toxicity_results.ipynb`, and `human_eval_results.ipynb`. To create your own prompts dataset with a couple lines of code, you can get started with `prompts_playground.ipynb`. Sample and compare generations from each model with `review_sentiment_generations.ipynb` and `review_toxicity_generations.ipynb`. 
+Our jupyter notebooks are in `notebooks/`. To obtain the same tables and plots that appear in the paper, look in `sentiment_results.ipynb`, `toxicity_results.ipynb`, and `human_eval_results.ipynb`. To create your own prompts dataset with a couple lines of code, you can get started with `prompts_playground.ipynb`. Sample and compare generations from each model with `review_sentiment_generations.ipynb` and `review_toxicity_generations.ipynb`.
 
 ## Downloading the original data and models from our paper
 
