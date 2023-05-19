@@ -22,7 +22,7 @@ from generation.pplm_generation import PPLMGeneration
 from utils.constants import OPENAI_API_KEY
 from utils.utils import batchify, load_cache
 
-logging.disable(logging.CRITICAL)  # Disable logging from transformers
+# logging.disable(logging.CRITICAL)  # Disable logging from transformers
 
 
 def pplm(prompts: pd.Series,
@@ -194,7 +194,7 @@ def dexperts(prompts: pd.Series,
              **generate_kwargs) -> Iterable[str]:
 
     generator = DExpertsGeneration(
-        base_model=model_name_or_path, 
+        base_model=model_name_or_path,
         expert_model=expert_name_or_path,
         antiexpert_model=antiexpert_name_or_path
     )
@@ -219,7 +219,7 @@ def dexperts_gpt3(prompts: pd.Series,
                   antiexpert_name_or_path: str,
                   out_file: Path,
                   **generate_kwargs) -> Iterable[str]:
-    
+
     generator = DExpertsGPT3Generation(
         gpt3_model=model_name_or_path,
         expert_model=expert_name_or_path,
@@ -260,7 +260,7 @@ def gpt3(prompts: pd.Series,
             except Exception as e:
                 tqdm.write(str(e))
                 tqdm.write("Retrying...")
-                
+
     prompts = prompts.repeat(num_samples)
     for batch in tqdm(batchify(prompts, batch_size)):
         response = request(batch)

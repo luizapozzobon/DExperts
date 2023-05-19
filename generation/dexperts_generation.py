@@ -1,6 +1,9 @@
 from pathlib import Path
 from typing import Union, List
+import numpy as np
+import logging
 
+import time
 import torch
 import torch.nn.functional as F
 from transformers import GPT2LMHeadModel, GPT2Tokenizer, modeling_utils, GPT2PreTrainedModel
@@ -10,16 +13,17 @@ from utils import utils
 from utils.generation_utils import top_k_top_p_filtering
 
 MAX_LENGTH = int(10000)  # Hardcoded max length to avoid infinite loop
+logger = logging.getLogger(__name__)
 
-class DExpertsGeneration(GPT2Generation): 
+class DExpertsGeneration(GPT2Generation):
     STOP_TOKEN = "<|endoftext|>"
 
     def __init__(
-        self, 
+        self,
         base_model: Union[str, Path, GPT2PreTrainedModel],
         antiexpert_model: Union[str, Path, GPT2PreTrainedModel] = None,
         expert_model: Union[str, Path, GPT2PreTrainedModel] = None,
-        tokenizer: str = 'gpt2', 
+        tokenizer: str = 'gpt2',
         seed: int = 42,
     ):
         # Set up device
@@ -28,19 +32,21 @@ class DExpertsGeneration(GPT2Generation):
         utils.set_seed(seed, n_gpu)
 
         self.base_model = GPT2LMHeadModel.from_pretrained(base_model).to(self.device)
-        
+
         if antiexpert_model:
             self.antiexpert = GPT2LMHeadModel.from_pretrained(antiexpert_model).to(self.device)
         else:
             self.antiexpert = None
-        
+
         if expert_model:
             self.expert = GPT2LMHeadModel.from_pretrained(expert_model).to(self.device)
         else:
             self.expert = None
-        
+
         self.tokenizer = GPT2Tokenizer.from_pretrained(tokenizer, pad_token=self.STOP_TOKEN)
         assert self.tokenizer.eos_token_id == self.tokenizer.pad_token_id
+
+        self.inference_time = []
 
     def __repr__(self):
         return f'<DExpertsGenerator model_name_or_path="{self.model}">'
@@ -72,29 +78,31 @@ class DExpertsGeneration(GPT2Generation):
             self.expert.eval()
         if self.antiexpert:
             self.antiexpert.eval()
+
+        start = time.time()
         with torch.no_grad():
             for step in range(max_len):
                 # base model prediction
                 base_logits, base_past = self.base_model(
                     input_ids, attention_mask=attention_mask, position_ids=position_ids, **model_kwargs)
-                
+
                 # expert prediction
                 if self.expert:
                     expert_logits, expert_past = self.expert(
                         input_ids, attention_mask=attention_mask, position_ids=position_ids, **model_kwargs)
                 else:
                     expert_logits = base_logits
-                
+
                 # antiexpert prediction
                 if self.antiexpert:
                     antiexpert_logits, antiexpert_past = self.antiexpert(
                         input_ids, attention_mask=attention_mask, position_ids=position_ids, **model_kwargs)
                 else:
                     antiexpert_logits = base_logits
-                
+
                 if filter_p < 1.0:
                     base_logits = top_k_top_p_filtering(base_logits, top_p=filter_p)
-                
+
                 # DExperts
                 alpha = torch.tensor(alpha).to(self.device)
                 ensemble_logits = base_logits + alpha * (expert_logits - antiexpert_logits)
@@ -135,6 +143,12 @@ class DExpertsGeneration(GPT2Generation):
                 input_ids = torch.cat([input_ids, tokens_to_add.unsqueeze(-1)], dim=-1)
                 attention_mask = torch.cat([attention_mask, attention_mask.new_ones((batch_size, 1))], dim=1)
                 position_ids = torch.cat([position_ids, (position_ids[:, -1] + 1).unsqueeze(-1)], dim=1)
+
+        self.inference_time.append(time.time() - start)
+
+        if len(self.inference_time) % 1000 == 0 and self.inference_time != []:
+            logger.info(f"Mean inference time (max tokens: {max_len}): {np.mean(self.inference_time)} ({np.std(self.inference_time)})")
+            self.inference_time = []
 
         decoded_outputs = [self.tokenizer.decode(output, skip_special_tokens=True, clean_up_tokenization_spaces=True)
                            for output in input_ids[:, input_seq_len:]]

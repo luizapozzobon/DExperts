@@ -8,6 +8,7 @@ import torch
 from tqdm import tqdm
 import os
 
+import logging
 from generation.generation import gpt2, gpt3, pplm, dexperts, dexperts_gpt3
 from utils.constants import PERSPECTIVE_API_ATTRIBUTES_LOWER
 from utils.perspective_api import PerspectiveWorker, unpack_scores
@@ -94,6 +95,15 @@ def main(output_dir: str, dataset_file: Optional[str], use_eos: bool, model: str
     ensure_dir(output_dir)
     output_file = output_dir / f'{"eos" if use_eos else "prompted"}_gens_{model_type}.jsonl'
 
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
+        datefmt="%m/%d/%Y %H:%M:%S",
+        handlers=[logging.StreamHandler(), logging.FileHandler(output_dir / 'log.log', mode="a")]
+    )
+    logger = logging.getLogger(__name__)
+    logger.info("Starting experiment.")
+
     # Create perspective worker thread
     perspective = PerspectiveWorker(
         out_file=perspective_file,
@@ -166,11 +176,16 @@ def main(output_dir: str, dataset_file: Optional[str], use_eos: bool, model: str
     else:
         raise NotImplementedError(f'Model {model} not implemented')
 
+    logger.info(f"Loaded model {model_type}")
+
+    logger.info("Starting generations")
     # Generate and collate perspective scores
     generations = []
     for i, gen in enumerate(generations_iter):
         generations.append(gen)
         perspective(f'generation-{i}', gen)
+
+    logger.info("Ended generations")
 
     torch.cuda.empty_cache()
     perspective.stop()
