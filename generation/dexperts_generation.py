@@ -13,6 +13,13 @@ from utils import utils
 from utils.generation_utils import top_k_top_p_filtering
 
 MAX_LENGTH = int(10000)  # Hardcoded max length to avoid infinite loop
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
+    datefmt="%m/%d/%Y %H:%M:%S",
+    handlers=[logging.StreamHandler()]
+)
 logger = logging.getLogger(__name__)
 
 class DExpertsGeneration(GPT2Generation):
@@ -144,10 +151,11 @@ class DExpertsGeneration(GPT2Generation):
                 attention_mask = torch.cat([attention_mask, attention_mask.new_ones((batch_size, 1))], dim=1)
                 position_ids = torch.cat([position_ids, (position_ids[:, -1] + 1).unsqueeze(-1)], dim=1)
 
-        self.inference_time.append(time.time() - start)
+        self.inference_time.append((time.time() - start) / batch_size)
 
         if len(self.inference_time) % 1000 == 0 and self.inference_time != []:
-            logger.info(f"Mean inference time (max tokens: {max_len}): {np.mean(self.inference_time)} ({np.std(self.inference_time)})")
+            logger.info(
+                f"Mean inference time (max tokens: {max_len}, batch size {batch_size}): {np.mean(self.inference_time).round(4)} ({np.std(self.inference_time).round(4)})")
             self.inference_time = []
 
         decoded_outputs = [self.tokenizer.decode(output, skip_special_tokens=True, clean_up_tokenization_spaces=True)

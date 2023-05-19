@@ -1,9 +1,11 @@
 ALPHA=2.0
 EXPERT_SIZE=large
-API_RATE=20
+API_RATE=90
 MODEL_DIR=models/experts/toxicity/$EXPERT_SIZE
 PROMPTS_DATASET=prompts/nontoxic_prompts-10k.jsonl
-OUTPUT_DIR=generations/toxicity/dexperts/${EXPERT_SIZE}_experts/
+OUTPUT_DIR=generations/toxicity/dexperts/${EXPERT_SIZE}_experts
+
+mkdir -p $OUTPUT_DIR
 
 python -m scripts.run_toxicity_experiment \
     --use-dataset \
